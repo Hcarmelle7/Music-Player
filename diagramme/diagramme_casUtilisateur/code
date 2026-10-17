@@ -1,0 +1,79 @@
+@startuml
+
+left to right direction
+skinparam packageStyle rectangle
+ 
+actor "Utilisateur" as user
+actor "Système de Fichiers" as fs << System >>
+ 
+rectangle "Système de Gestion Musicale (GTK4 + SQLite)" {
+  package "Gestion du Catalogue" {
+    usecase "Importer des musiques" as UC1
+    usecase "Scanner support externe (USB/Disque)" as UC1b
+    usecase "Extraire métadonnées" as UC2
+    usecase "Modifier manuellement les métadonnées" as UC3
+    usecase "Organiser fichiers sur disque" as UC4
+    usecase "Détecter les doublons" as UC5
+    usecase "Rechercher une musique (Multicritères)" as UC6
+    ' --- AJOUTS ICI ---
+    usecase "Supprimer un fichier musical" as UC_Del
+    usecase "Trier le catalogue (Artiste/Album/Genre)" as UC_Sort
+    ' ------------------
+  }
+ 
+  package "Lecture & Playlists" {
+    usecase "Gérer les Playlists (CRUD)" as UC7
+    usecase "Écouter une musique" as UC8
+    usecase "Activer mode Aléatoire/Boucle" as UC9
+    usecase "Afficher mode Karaoké" as UC10
+    usecase "Charger fichier de paroles (.txt)" as UC11
+  }
+ 
+  package "Administration & Système" {
+    usecase "Consulter logs et erreurs" as UC12
+    usecase "Synchroniser avec SQLite" as UC13
+  }
+ 
+  ' Relations Utilisateur
+  user --> UC1
+  user --> UC3
+  user --> UC6
+  user --> UC7
+  user --> UC8
+  user --> UC11
+  user --> UC12
+  ' --- AJOUTS RELATIONS UTILISATEUR ---
+  user --> UC_Del
+  user --> UC_Sort
+  ' ------------------------------------
+ 
+  ' Relations Système / Inclusions
+  UC1 ..> UC1b : <<include>>
+  UC1 ..> UC2 : <<include>>
+  UC1 ..> UC4 : <<include>>
+  UC1 ..> UC5 : <<include>>
+  UC8 <.. UC9 : <<extend>>
+  UC8 <.. UC10 : <<extend>>
+  UC10 ..> UC11 : <<include>>
+ 
+  ' Persistance des données (SQLite)
+  UC1 ..> UC13 : <<include>>
+  UC3 ..> UC13 : <<include>>
+  UC7 ..> UC13 : <<include>>
+  ' --- AJOUT PERSISTANCE ---
+  ' La suppression doit mettre à jour la BDD (Source: p.4)
+  UC_Del ..> UC13 : <<include>> 
+  ' -------------------------
+ 
+  ' Interaction avec le système de fichiers
+  UC1b -- fs
+  UC4 -- fs
+}
+ 
+note right of UC12
+  Conforme aux règles de sécurité ANSSI :
+  Vérification des retours fonctions
+  et limites de buffers.
+end note
+ 
+@enduml

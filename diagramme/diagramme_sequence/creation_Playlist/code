@@ -1,0 +1,41 @@
+@startuml
+title Séquence : Création d'une Playlist
+actor "Utilisateur" as User
+participant "ihm.c" as View
+participant "app_controller.c" as Ctrl
+participant "dao_playlist.c" as DAO_PL
+participant "db_manager.c" as DB
+participant "logger.c" as Log
+ 
+User -> View : Clique "Nouvelle Playlist"
+View -> User : Affiche Popup "Nom de la playlist ?"
+User -> View : Saisit "Mes Favoris" et Valide
+ 
+activate View
+View -> Ctrl : on_playlist_create("Mes Favoris")
+activate Ctrl
+ 
+    Ctrl -> DAO_PL : creer_playlist("Mes Favoris")
+    activate DAO_PL
+    DAO_PL -> DB : INSERT INTO playlist (nom) VALUES ...
+    activate DB
+    alt Erreur SQL (ex: Nom unique déjà pris)
+        DB --> DAO_PL : Code Erreur (ERR_DB_CONSTRAINT)
+        DAO_PL -> Log : log_error("Echec création playlist")
+        DAO_PL --> Ctrl : Code Erreur
+    else Succès
+        DB --> DAO_PL : Nouvel ID
+        deactivate DB
+        DAO_PL --> Ctrl : SUCCES
+    end
+    deactivate DAO_PL
+ 
+    alt Si Succès
+        Ctrl -> View : ajouter_playlist_sidebar("Mes Favoris")
+    else Si Erreur
+        Ctrl -> View : afficher_erreur("Impossible de créer la playlist")
+    end
+ 
+deactivate Ctrl
+deactivate View
+@enduml

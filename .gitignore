@@ -1,0 +1,6 @@
+Musique/
+*.flac
+*.mp3
+*.wav
+build/
+bin/

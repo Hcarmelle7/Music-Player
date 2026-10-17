@@ -1,0 +1,52 @@
+@startuml
+title Séquence : Lecture d 'une Playlist
+actor "Utilisateur" as User
+participant "ihm.c" as View
+participant "app_controller.c" as Ctrl
+participant "audio_engine.c" as Audio
+participant "karaoke.c" as Karaoke
+participant "dao_playlist.c" as DAO_PL
+ 
+User -> View : Double-clique sur "Mes Favoris"
+activate View
+ 
+View -> Ctrl : on_playlist_play(playlist_id)
+activate Ctrl
+ 
+    ' 1. Chargement des données
+    Ctrl -> DAO_PL : get_titres_playlist(playlist_id)
+    activate DAO_PL
+    DAO_PL --> Ctrl : Liste[Musique]
+    deactivate DAO_PL
+    ' 2. Initialisation Audio
+    Ctrl -> Audio : set_queue(Liste)
+    Ctrl -> Audio : play_index(0)
+    activate Audio
+    Audio -> Audio : load_file(chemin)
+    Audio --> Ctrl : Status PLAYING
+    ' 3. Boucle de mise à jour (Timer)
+    loop Tant que ça joue (Timer 100ms)
+        View -> Ctrl : on_tick_update()
+        Ctrl -> Audio : get_position()
+        Audio --> Ctrl : position_ms
+        ' Mise à jour Barre progression
+        Ctrl -> View : update_progress_bar(position_ms)
+        ' Gestion Karaoké (Optionnelle mais valorisante)
+        opt Mode Karaoké Actif
+            Ctrl -> Karaoke : sync_paroles(position_ms)
+            Karaoke --> View : update_lyrics_label(texte)
+        end
+    end
+ 
+    ' 4. Passage à la suivante (Automatique)
+    Audio -> Ctrl : Signal (END_OF_TRACK)
+    deactivate Audio
+    Ctrl -> Audio : next_track()
+    activate Audio
+    Audio -> Audio : load_file(next)
+    Audio --> Ctrl : Status PLAYING
+    Ctrl -> View : update_titre_courant(Titre)
+ 
+deactivate Ctrl
+deactivate View
+@enduml

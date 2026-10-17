@@ -1,0 +1,65 @@
+@startuml
+skinparam state {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+}
+
+title États du Lecteur Audio
+
+[*] --> ARRET : Init
+
+state "ARRÊT (STOPPED)" as ARRET {
+    ARRET : entry / libérer_ressources()
+    ARRET : do / attendre_fichier()
+}
+
+state "CHARGEMENT (LOADING)" as CHARGEMENT {
+    CHARGEMENT : entry / ouvrir_fichier(path)
+    CHARGEMENT : do / parser_header()
+    
+    state "Vérification" as Check <<Choice>>
+}
+
+state "EN LECTURE (PLAYING)" as LECTURE {
+    LECTURE : entry / init_stream()
+    LECTURE : do / décoder_buffer()
+    LECTURE : do / envoyer_carte_son()
+    LECTURE : exit / sauvegarder_position()
+}
+
+state "PAUSE (PAUSED)" as PAUSE {
+    PAUSE : entry / couper_son()
+    PAUSE : do / garder_position_memoire()
+}
+
+state "ERREUR (ERROR)" as ERREUR {
+    ERREUR : entry / log_error()
+    ERREUR : do / afficher_popup()
+}
+
+' --- TRANSITIONS ---
+
+ARRET --> CHARGEMENT : Evt_Play(fichier)
+
+CHARGEMENT --> Check
+Check --> LECTURE : [Format Valide]
+Check --> ERREUR : [Fichier Corrompu/Inconnu]
+
+LECTURE --> PAUSE : Evt_Pause
+PAUSE --> LECTURE : Evt_Resume
+
+LECTURE --> ARRET : Evt_Stop
+LECTURE --> ARRET : Evt_FinDePiste (EOF)
+PAUSE --> ARRET : Evt_Stop
+
+ERREUR --> ARRET : Evt_AcquitterErreur
+
+note right of ERREUR
+  Gestion des cas :
+  - Fichier introuvable
+  - Codec non supporté
+  (Exigence Section 10)
+end note
+
+@enduml

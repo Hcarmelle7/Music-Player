@@ -1,0 +1,87 @@
+@startuml
+ 
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+ 
+' --- DÉFINITION DES MODULES (Fichiers .c / .h) ---
+ 
+package "Point d'Entrée" {
+    [main.c] as Main
+}
+ 
+package "COUCHE VUE (Interface GTK4)" {
+    component "ihm.c / .h" as IHM {
+        port "Signaux" as UI_Signals
+        port "MiseAJour" as UI_Update
+    }
+}
+ 
+package "COUCHE CONTRÔLEUR (Orchestration)" {
+    component "app_controller.c / .h" as Ctrl
+}
+ 
+package "COUCHE MÉTIER (Services / Engines)" {
+    component "audio_engine.c / .h" as Audio
+    component "importer.c / .h" as Scanner
+    component "karaoke.c / .h" as Karaoke
+}
+ 
+package "COUCHE DONNÉES (Persistance)" {
+    component "db_manager.c / .h" as DB
+    package "DAO" {
+        [dao_musique.c] as DaoMus
+        [dao_playlist.c] as DaoPlay
+    }
+}
+ 
+package "PARTAGÉ (Cross-Cutting)" {
+    [structures.h] as Structs
+    [errors.h] as Errors
+    [utils.c / .h] as Utils
+    [logger.c / .h] as Logger
+}
+ 
+' --- DÉPENDANCES EXTERNES ---
+ 
+cloud "Librairies Externes" {
+    [GTK4] as libGTK
+    [SQLite3] as libSQL
+    [libsndfile / mpg123] as libAudio
+    [dirent.h / sys/stat.h] as libFS
+}
+ 
+' --- RELATIONS ET FLUX ---
+ 
+' Initialisation
+Main --> Ctrl : "Appelle init_app()"
+Main --> IHM : "Lance gtk_application_run()"
+ 
+' MVC Links
+IHM -(0- Ctrl : "Signaux (GCallback)"
+Ctrl --> IHM : "Modifie Widgets"
+ 
+' Logique Métier
+Ctrl --> Audio : "Commandes (Play/Stop)"
+Ctrl --> Scanner : "Lancer Scan"
+Ctrl --> Karaoke : "Activer Synchro"
+ 
+' Données
+Scanner ..> DaoMus : "Persiste"
+Ctrl --> DaoMus : "Requêtes"
+Ctrl --> DaoPlay : "Gestion"
+DaoMus --> DB : "SQL"
+DaoPlay --> DB : "SQL"
+ 
+' Dépendances Système & Librairies
+Scanner ..> libFS : "Parcours fichiers"
+IHM ..> libGTK
+DB ..> libSQL
+Audio ..> libAudio
+ 
+' Partagé
+Structs <.. Ctrl
+Structs <.. DAO
+Errors <.. Ctrl : "Status codes"
+Errors <.. DAO : "Status codes"
+Logger <.. Utils : "Debug/Trace"
+@enduml

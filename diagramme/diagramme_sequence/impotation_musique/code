@@ -1,0 +1,51 @@
+@startuml
+skinparam style strictuml
+title Séquence : Importation (Avec Gestion Doublons & Organisation)
+
+actor Utilisateur
+participant "IHM (ihm.c)" as IHM
+participant "AppController\n(app_controller.c)" as Ctrl
+participant "Importateur\n(importer.c)" as Scanner
+participant "DAOMusique\n(dao_musique.c)" as DAO
+database "SQLite" as DB
+
+Utilisateur -> IHM : Clique sur "Importer Dossier"
+IHM -> Ctrl : on_import_requested(path)
+Ctrl -> Scanner : scanner_dossier(path)
+activate Scanner
+
+    loop Pour chaque fichier audio trouvé
+        Scanner -> Scanner : extraire_metadonnees(fichier)
+        note right: Utilise libsndfile/mpg123 [cite: 190]
+
+        ' --- ETAPE CRITIQUE : DETECTION DOUBLONS [cite: 72] ---
+        Scanner -> DAO : verifier_doublon(chemin, titre)
+        activate DAO
+        DAO -> DB : SELECT count(*) FROM musique...
+        DB --> DAO : resultat (0 ou 1)
+        deactivate DAO
+
+        alt Si Doublon (resultat > 0)
+             Scanner -> Scanner : log_warning("Fichier ignoré")
+        else Nouveau Fichier
+             ' --- ETAPE ORGANISATION FICHIERS  ---
+             Scanner -> Scanner : organiser_fichier(src, "Artiste/Album/")
+             note right: Crée les dossiers Artiste/Album\nRenomme le fichier
+
+             ' --- INSERTION BDD ---
+             Scanner -> DAO : inserer_musique(Musique)
+             activate DAO
+             DAO -> DB : INSERT INTO musique...
+             DB --> DAO : SQL_OK
+             DAO --> Scanner : ID_Musique
+             deactivate DAO
+        end
+    end
+
+Scanner --> Ctrl : Import Terminé (Stats)
+deactivate Scanner
+
+Ctrl -> IHM : rafraichir_catalogue()
+IHM --> Utilisateur : Affiche la liste mise à jour
+
+@enduml

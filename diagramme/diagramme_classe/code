@@ -1,0 +1,153 @@
+@startuml
+ 
+' Style configuration
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+ 
+package "MODEL (Structures de Données)" {
+    class "Song" as Song {
+        + int id
+        + char* title
+        + char* artist
+        + char* album
+        + char* genre
+        + int duration
+        + int year
+        + char* file_path
+        + char* lyrics_path
+    }
+ 
+    class "Playlist" as Playlist {
+        + int id
+        + char* name
+        + int song_count
+        + Song** tracks
+    }
+ 
+    class "Lyrics" as Lyrics {
+        + int song_id
+        + char* language
+        + char* text_content
+        + SyncPoint* time_stamps
+    }
+}
+ 
+package "DATA ACCESS (SQLite)" {
+    class "DatabaseManager" as DBManager {
+        - sqlite3* db
+        + init_db() : int
+        + close_db() : void
+        + begin_transaction()
+        + commit()
+    }
+ 
+    class "SongDAO" as SongDAO {
+        + insert_song(Song s) : int
+        + delete_song(int id) : int
+        + update_song(Song s) : int
+        + get_all_songs() : Song*
+        + search_songs(char* query) : Song*
+        + get_sorted_songs(char* criteria) : Song*
+        + check_duplicate(char* path) : bool
+    }
+ 
+    class "PlaylistDAO" as PlaylistDAO {
+        + create_playlist(char* name) : int
+        + delete_playlist(int id) : int
+        + add_track(int playlist_id, int song_id)
+        + remove_track(int playlist_id, int song_id)
+    }
+}
+ 
+package "CONTROLLER (Logique Métier)" {
+    class "MainController" as MainCtrl {
+        + on_app_start()
+        + on_import_requested(char* path)
+        + on_search_changed(char* text)
+        + on_sort_clicked(char* criteria)
+    }
+ 
+    class "LibraryScanner" as Scanner {
+        + scan_directory(char* path)
+        + extract_metadata(char* file) : Song
+        + organize_file(char* source, char* dest)
+    }
+ 
+    class "AudioPlayer" as Player {
+        - bool is_playing
+        - bool is_shuffle
+        - bool is_loop
+        - Song* current_song
+        + load_file(char* path)
+        + play()
+        + pause()
+        + stop()
+        + set_volume(int level)
+    }
+ 
+    class "KaraokeEngine" as Karaoke {
+        + load_lyrics(char* path)
+        + sync_display(int current_time_ms)
+        + toggle_mode(bool active)
+    }
+}
+ 
+package "VIEW (Interface Graphique GTK4)" {
+    class "MainWindow" as MainWin {
+        + GtkWindow* window
+        + show_error(char* msg)
+    }
+ 
+    class "CatalogView" as CatView {
+        + GtkColumnView* list
+        + refresh_list(Song* songs)
+    }
+ 
+    class "PlayerView" as PlayerUI {
+        + GtkButton* btn_play
+        + GtkScale* progress_bar
+        + GtkLabel* label_lyrics
+        + update_time(int time)
+    }
+}
+ 
+' --- RELATIONS ---
+ 
+' MVC Connections
+MainCtrl --> MainWin : Gère l'affichage
+MainCtrl --> SongDAO : Interroge BDD
+MainCtrl --> Scanner : Déclenche import
+MainCtrl --> Player : Contrôle audio
+ 
+' Data Access uses basic structs
+SongDAO ..> Song : Crée/Lit
+PlaylistDAO ..> Playlist : Crée/Lit
+DBManager <.. SongDAO : Utilise connexion
+DBManager <.. PlaylistDAO : Utilise connexion
+ 
+' Logic Connections
+Scanner ..> Song : Génère struct
+Scanner ..> SongDAO : Sauvegarde metadata
+Player ..> Karaoke : Notifie temps
+ 
+' View structure
+MainWin *-- CatView
+MainWin *-- PlayerUI
+ 
+' Note spécifique aux exigences du PDF
+note right of SongDAO
+  Correspond aux UC:
+  - Rechercher (Multicritères)
+  - Trier le catalogue
+  - Supprimer un fichier
+  - Détecter doublons
+end note
+ 
+note right of Scanner
+  Correspond aux UC:
+  - Importer / Scanner
+  - Extraire métadonnées
+  - Organiser fichiers
+end note
+ 
+@enduml

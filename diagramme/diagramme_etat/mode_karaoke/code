@@ -1,0 +1,57 @@
+@startuml
+skinparam state {
+  BackgroundColor AliceBlue
+  BorderColor Blue
+  ArrowColor Blue
+}
+
+title États du Mode Karaoké
+
+[*] --> DESACTIVE
+
+state "DÉSACTIVÉ (INACTIVE)" as DESACTIVE {
+    DESACTIVE : entry / cacher_zone_texte()
+}
+
+state "ACTIVÉ (ACTIVE)" as ACTIF {
+    
+    state "RECHERCHE PAROLES" as RECHERCHE {
+        RECHERCHE : entry / scanner_dossier_txt()
+        RECHERCHE : do / chercher_fichier_associé()
+    }
+
+    state "Vérification" as CheckTxt <<Choice>>
+
+    state "MODE TEXTE SEUL" as TEXTE {
+        TEXTE : entry / charger_texte_complet()
+        TEXTE : do / afficher_statique()
+        note right : Cas: Paroles présentes\nmais pas de timestamps
+    }
+
+    state "MODE SYNCHRONISÉ" as SYNCHRO {
+        SYNCHRO : entry / parser_timestamps()
+        SYNCHRO : do / attendre_signal_temps(ms)
+        SYNCHRO : do / mettre_a_jour_ligne()
+        note right : Exigence: Synchro temporelle\n(ms ou sec) [cite: 122]
+    }
+    
+    state "AUCUNE PAROLE" as VIDE {
+        VIDE : entry / afficher_image_defaut()
+    }
+
+    ' Sous-Transitions internes
+    RECHERCHE --> CheckTxt : Scan terminé
+    CheckTxt --> SYNCHRO : [Fichier .lrc ou timestamps détectés]
+    CheckTxt --> TEXTE : [Fichier .txt simple]
+    CheckTxt --> VIDE : [Aucun fichier trouvé]
+}
+
+' --- TRANSITIONS GLOBALES ---
+
+DESACTIVE --> ACTIF : Clic "Bouton Karaoké"
+ACTIF --> DESACTIVE : Clic "Bouton Karaoké"
+
+' Changement de musique déclenche une nouvelle recherche
+ACTIF --> RECHERCHE : Evt_NouvelleMusique
+
+@enduml
